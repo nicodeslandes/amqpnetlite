@@ -18,6 +18,7 @@
 namespace Amqp
 {
     using System;
+    using System.Collections.Generic;
     using Amqp.Framing;
     using Amqp.Types;
 
@@ -575,10 +576,49 @@ namespace Amqp
             link.OnTransfer(delivery, transfer, buffer);
         }
 
+        //void OnDispose(Dispose dispose)
+        //{
+        //    SequenceNumber first = dispose.First;
+        //    SequenceNumber last = dispose.Last;
+
+        //    lock (this.ThisLock)
+        //    {
+        //        LinkedList linkedList = dispose.Role ? this.outgoingList : this.incomingList;
+        //        Delivery delivery = (Delivery)linkedList.First;
+        //        while (delivery != null && delivery.DeliveryId <= last)
+        //        {
+        //            Delivery next = (Delivery)delivery.Next;
+
+        //            if (delivery.DeliveryId >= first)
+        //            {
+        //                delivery.Settled = dispose.Settled;
+        //                if (delivery.Settled)
+        //                {
+        //                    linkedList.Remove(delivery);
+        //                }
+
+        //                // DEADLOCK!!!!
+        //                // delivery.OnStateChanged will cause the original SendTask to be completed, and
+        //                // that means continuation code will be run at that point
+        //                // If that continuation code takes a lock on another session, that other session
+        //                // might end up in the same code path, and attempt to take a lock on this session, thereby
+        //                // causing a deadlock
+        //                // This call needs to be moved out of the lock (or maybe done inside of a Task.Run?)
+        //                delivery.OnStateChange(dispose.State);
+        //            }
+
+        //            delivery = next;
+        //        }
+        //    }
+        //}
+
+
         void OnDispose(Dispose dispose)
         {
             SequenceNumber first = dispose.First;
             SequenceNumber last = dispose.Last;
+
+            var disposedDeliveries = new List<Delivery>();
             lock (this.ThisLock)
             {
                 LinkedList linkedList = dispose.Role ? this.outgoingList : this.incomingList;
@@ -595,11 +635,24 @@ namespace Amqp
                             linkedList.Remove(delivery);
                         }
 
-                        delivery.OnStateChange(dispose.State);
+                        // DEADLOCK!!!!
+                        // delivery.OnStateChanged will cause the original SendTask to be completed, and
+                        // that means continuation code will be run at that point
+                        // If that continuation code takes a lock on another session, that other session
+                        // might end up in the same code path, and attempt to take a lock on this session, thereby
+                        // causing a deadlock
+                        // This call needs to be moved out of the lock (or maybe done inside of a Task.Run?)
+
+                        disposedDeliveries.Add(delivery);
                     }
 
                     delivery = next;
                 }
+            }
+
+            foreach (var delivery in disposedDeliveries)
+            {
+                delivery.OnStateChange(dispose.State);
             }
         }
 

@@ -50,6 +50,7 @@ IF /I "%1" EQU "package" (
 :args-start
 IF /I "%1" EQU "" GOTO args-done
 
+IF /I "%1" EQU "--skipbuild" SET build-sln=false&&GOTO args-loop
 IF /I "%1" EQU "--skiptest" SET build-test=false&&GOTO args-loop
 IF /I "%1" EQU "--nuget" SET build-nuget=true&&GOTO args-loop
 IF /I "%1" EQU "--config" GOTO :args-config
@@ -209,10 +210,10 @@ TASKKILL /F /IM TestAmqpBroker.exe
 :nuget-package
 IF /I "%build-nuget%" EQU "false" GOTO :exit
 
-IF /I "%build-config%" NEQ "Release" (
-  ECHO Not building release. Skipping NuGet package.
-  GOTO :exit
-)
+REM IF /I "%build-config%" NEQ "Release" (
+REM   ECHO Not building release. Skipping NuGet package.
+REM   GOTO :exit
+REM )
 
 rem Build NuGet package
 ECHO.

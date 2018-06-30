@@ -208,7 +208,7 @@ namespace Amqp
 
             try
             {
-                await new SendTask(this, message, txnState, timeout).Task;
+                await new SendTask(this, message, txnState, timeout).Task.ConfigureAwait(false);
             }
             catch (TimeoutException)
             {
@@ -291,29 +291,36 @@ namespace Amqp
             SendTask thisPtr = (SendTask)state;
             thisPtr.timer.Dispose();
 
-            if (outcome.Descriptor.Code == Codec.Accepted.Code)
+            //System.Threading.Tasks.Task.Run(() =>
             {
-                thisPtr.TrySetResult(true);
+                if (outcome.Descriptor.Code == Codec.Accepted.Code)
+                {
+                    thisPtr.TrySetResult(true);
+                }
+                else if (outcome.Descriptor.Code == Codec.Rejected.Code)
+                {
+                    thisPtr.TrySetException(new AmqpException(((Rejected)outcome).Error));
+                }
+                else if (outcome.Descriptor.Code == Codec.Released.Code)
+                {
+                    thisPtr.TrySetException(new AmqpException(ErrorCode.MessageReleased, null));
+                }
+                else
+                {
+                    thisPtr.TrySetException(new AmqpException(ErrorCode.InternalError, outcome.ToString()));
+                }
             }
-            else if (outcome.Descriptor.Code == Codec.Rejected.Code)
-            {
-                thisPtr.TrySetException(new AmqpException(((Rejected)outcome).Error));
-            }
-            else if (outcome.Descriptor.Code == Codec.Released.Code)
-            {
-                thisPtr.TrySetException(new AmqpException(ErrorCode.MessageReleased, null));
-            }
-            else
-            {
-                thisPtr.TrySetException(new AmqpException(ErrorCode.InternalError, outcome.ToString()));
-            }
+            //);
         }
 
         static void OnTimer(object state)
         {
             var thisPtr = (SendTask)state;
-            thisPtr.TrySetException(new TimeoutException());
-        }
+            //System.Threading.Tasks.Task.Run(() =>
+            //{
+                thisPtr.TrySetException(new TimeoutException());
+            //});
+    }
     }
 
     /// <summary>

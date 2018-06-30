@@ -68,6 +68,8 @@ namespace Amqp
         public SenderLink(Session session, string name, Attach attach, OnAttached onAttached)
             : base(session, name, onAttached)
         {
+            Console.WriteLine($"New SenderLink {GetHashCode()} - Session: {session.GetHashCode()} - " +
+                $"Connection: {session.Connection.GetHashCode()}");
             this.settleMode = attach.SndSettleMode;
             this.outgoingList = new LinkedList();
             this.SendAttach(false, this.deliveryCount, attach);
@@ -191,6 +193,10 @@ namespace Amqp
                 delivery.Tag = Delivery.GetDeliveryTag(this.deliveryCount);
                 this.credit--;
                 this.deliveryCount++;
+//#if !NETFX_CORE
+//                Console.WriteLine("SenderLink {0} - About to write delivery - Writing flag moved from {1} to true",
+//                    GetHashCode(), this.writing);
+//#endif
                 this.writing = true;
             }
 
@@ -202,6 +208,9 @@ namespace Amqp
             lock (this.ThisLock)
             {
                 this.outgoingList.Remove(message.Delivery);
+#if !NETFX_CORE
+                Console.WriteLine("SenderLink {0} Timeout - Writing flag: {1}", GetHashCode(), this.writing);
+#endif
             }
 
             if (message.Delivery.BytesTransfered > 0)
@@ -215,7 +224,12 @@ namespace Amqp
             Delivery delivery = null;
             lock (this.ThisLock)
             {
-                this.credit = (flow.DeliveryCount + flow.LinkCredit) - this.deliveryCount;
+                var newCredit = (flow.DeliveryCount + flow.LinkCredit) - this.deliveryCount;
+//#if !NETFX_CORE
+//                Console.WriteLine($"SenderLink {GetHashCode()} - Flow received: {flow}");
+//                Console.WriteLine($"Adjusting credit from {this.credit} to {newCredit} - Writing flag: {this.writing}");
+//#endif
+                this.credit = newCredit;
                 if (this.writing || this.credit <= 0 || this.outgoingList.First == null)
                 {
                     return;
@@ -227,6 +241,9 @@ namespace Amqp
                 this.credit--;
                 this.deliveryCount++;
                 this.writing = true;
+//#if !NETFX_CORE
+//                Console.WriteLine("SenderLink {0} - OnFlow - Writing flag set to true", GetHashCode());
+//#endif
             }
 
             this.WriteDelivery(delivery);
@@ -313,6 +330,9 @@ namespace Amqp
                 {
                     lock (this.ThisLock)
                     {
+//#if !NETFX_CORE
+//                        Console.WriteLine("SenderLink {0} - Failed delivery - Resetting writing flag to false", GetHashCode());
+//#endif
                         this.writing = false;
                     }
 
@@ -327,6 +347,9 @@ namespace Amqp
                     {
                         shouldClose = this.CloseCalled;
                         delivery = null;
+//#if !NETFX_CORE
+//                        Console.WriteLine("SenderLink {0} - All deliveries done - Resetting writing flag to false", GetHashCode());
+//#endif
                         this.writing = false;
                     }
                     else if (this.credit > 0)
@@ -348,6 +371,11 @@ namespace Amqp
                     }
                 }
             }
+
+            //lock (this.ThisLock)
+            //{
+            //    Console.WriteLine("SenderLink {0} - Leaving WriteDelivery - Writing flag: {1}", GetHashCode(), this.writing);
+            //}
         }
     }
 }
