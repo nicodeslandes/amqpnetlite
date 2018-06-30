@@ -19,6 +19,7 @@ namespace Amqp
 {
     using System;
     using System.Collections.Generic;
+    using System.Threading.Tasks;
     using Amqp.Framing;
     using Amqp.Types;
 
@@ -419,7 +420,7 @@ namespace Amqp
                 throw new AmqpException(ErrorCode.NotFound,
                     Fx.Format(SRAmqp.LinkNotFound, attach.LinkName));
             }
-            
+
             link.OnAttach(attach.Handle, attach);
         }
 
@@ -650,9 +651,28 @@ namespace Amqp
                 }
             }
 
-            foreach (var delivery in disposedDeliveries)
+            // Update the state of the disposed deliveries
+            // Note that calling delivery.OnStateChange may complete some pending SendTask, thereby triggering the
+            // execution of some continuations. To avoid any deadlock, this MUST be done outside of any locks.
+            // Also, to avoid delaying some tasks in case multiple deliveries are to be notified, we marshall all these
+            // notifications to new tasks, except the last one
+            for (int i = 0; i < disposedDeliveries.Count; i++)
             {
-                delivery.OnStateChange(dispose.State);
+                var delivery = disposedDeliveries[i];
+                disposedDeliveries[i] = null;   // Avoid trailing reference
+
+                if (i < disposedDeliveries.Count - 1)
+                {
+                    // Marshall the OnStateChange call to another task so that this one doesn't get held because
+                    // of potential continuations
+                    Task.Run(() => delivery.OnStateChange(dispose.State));
+                }
+                else
+                {
+                    // No need to marshall the last notification; we do want to avoid any context switching for the last
+                    // delivery (especially in the typical case where there's only one)
+                    delivery.OnStateChange(dispose.State);
+                }
             }
         }
 
