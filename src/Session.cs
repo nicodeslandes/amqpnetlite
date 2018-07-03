@@ -19,7 +19,6 @@ namespace Amqp
 {
     using System;
     using System.Collections.Generic;
-    using System.Threading.Tasks;
     using Amqp.Framing;
     using Amqp.Types;
 
@@ -661,13 +660,15 @@ namespace Amqp
                 var delivery = disposedDeliveries[i];
                 disposedDeliveries[i] = null;   // Avoid trailing reference
 
+#if !NETFX35
                 if (i < disposedDeliveries.Count - 1)
                 {
                     // Marshall the OnStateChange call to another task so that this one doesn't get held because
                     // of potential continuations
-                    Task.Run(() => delivery.OnStateChange(dispose.State));
+                    System.Threading.Tasks.Task.Factory.StartNew(() => delivery.OnStateChange(dispose.State));
                 }
                 else
+#endif
                 {
                     // No need to marshall the last notification; we do want to avoid any context switching for the last
                     // delivery (especially in the typical case where there's only one)
