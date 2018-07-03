@@ -24,6 +24,6 @@ using System.Reflection;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("2.1.6")]
-[assembly: AssemblyFileVersion("2.1.6")]
-[assembly: AssemblyInformationalVersion("2.1.6-beta")]
+[assembly: AssemblyVersion("2.1.4")]
+[assembly: AssemblyFileVersion("2.1.4")]
+[assembly: AssemblyInformationalVersion("2.1.4-beta")]

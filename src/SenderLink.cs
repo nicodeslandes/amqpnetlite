@@ -68,8 +68,8 @@ namespace Amqp
         public SenderLink(Session session, string name, Attach attach, OnAttached onAttached)
             : base(session, name, onAttached)
         {
-            Console.WriteLine($"New SenderLink {GetHashCode()} - Session: {session.GetHashCode()} - " +
-                $"Connection: {session.Connection.GetHashCode()}");
+            //Console.WriteLine($"New SenderLink {GetHashCode()} - Session: {session.GetHashCode()} - " +
+            //    $"Connection: {session.Connection.GetHashCode()}");
             this.settleMode = attach.SndSettleMode;
             this.outgoingList = new LinkedList();
             this.SendAttach(false, this.deliveryCount, attach);

@@ -225,7 +225,7 @@ IF "%NuGetPath%" == "" (
 ) ELSE (
   IF NOT EXIST ".\Build\Packages" MKDIR ".\Build\Packages"
   ECHO Building NuGet package with version %build-version%
-  FOR %%G IN (AMQPNetLite AMQPNetLite.NetMF AMQPNetMicro AMQPNetLite.Core AMQPNetLite.Serialization AMQPNetLite.WebSockets) DO (
+  FOR %%G IN (AMQPNetLite AMQPNetLite.Core) DO (
     "%NuGetPath%" pack .\nuspec\%%G.nuspec -Version %build-version% -BasePath .\ -OutputDirectory ".\Build\Packages"
     IF ERRORLEVEL 1 (
       SET return-code=1
@@ -263,13 +263,13 @@ EXIT /b %return-code%
   "%NuGetPath%" restore amqp.sln
   IF ERRORLEVEL 1 EXIT /b 1
   "%MSBuildPath%" amqp.sln /t:%1 /nologo /p:Configuration=%build-config%;Platform="%build-platform%" /verbosity:%build-verbosity%
-  IF ERRORLEVEL 1 EXIT /b 1
+  REM IF ERRORLEVEL 1 EXIT /b 1
 
-  ECHO Build other versions of the micro NETMF projects
-  FOR /L %%I IN (2,1,3) DO (
-    "%MSBuildPath%" .\netmf\Amqp.Micro.NetMF.csproj /t:%1 /nologo /p:Configuration=%build-config%;Platform="%build-platform: =%";FrameworkVersionMajor=4;FrameworkVersionMinor=%%I /verbosity:%build-verbosity%
-    IF ERRORLEVEL 1 EXIT /b 1
-  )
+  REM ECHO Build other versions of the micro NETMF projects
+  REM FOR /L %%I IN (2,1,3) DO (
+  REM   "%MSBuildPath%" .\netmf\Amqp.Micro.NetMF.csproj /t:%1 /nologo /p:Configuration=%build-config%;Platform="%build-platform: =%";FrameworkVersionMajor=4;FrameworkVersionMinor=%%I /verbosity:%build-verbosity%
+  REM   IF ERRORLEVEL 1 EXIT /b 1
+  REM )
 
   EXIT /b 0
 
