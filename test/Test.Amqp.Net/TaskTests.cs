@@ -370,6 +370,36 @@ namespace Test.Amqp
             Assert.AreEqual(sendersFinished, await Task.WhenAny(sendersFinished, timeoutTask),
                 "Probable deadlock detected: timeout while waiting for concurrent sender tasks to complete");
         }
+
+        [TestMethod]
+        public async Task AsyncSendAndSyncClose()
+        {
+            var connection = await Connection.Factory.CreateAsync(
+                testTarget.Address, new Open() { ContainerId = "c1", MaxFrameSize = 4096 }, null);
+            Session session = new Session(connection);
+
+            Message message = new Message("Hello AMQP") { Properties = new Properties { To = "queue" } };
+
+            SenderLink sender = new SenderLink(session, "sender123", new Attach
+            {
+                Role = false,
+                SndSettleMode = SenderSettleMode.Unsettled,
+                Target = new Target { Address = "queue" },
+                // Other Attach params here ...
+            }, null);
+
+            var closeTask = Task.Run(async () =>
+            {
+                await sender.SendAsync(message);
+                sender.Close(); // It will deadlock here
+                session.Close();
+                connection.Close();
+            });
+
+            var timeoutTask = Task.Delay(TestTimeout);
+            Assert.AreEqual(closeTask, await Task.WhenAny(closeTask, timeoutTask),
+                "Probable deadlock detected: timeout while waiting for the connection to be closed");
+        }
 #endif
     }
 }
